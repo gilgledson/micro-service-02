@@ -1,0 +1,69 @@
+version: '3.7'
+services:
+    micro_02:
+        build:
+            args:
+                user: 'robertobelli'
+                uid: 1000
+            context: ./
+            dockerfile: ./Dockerfile
+        image: laravel-app
+        restart: unless-stopped
+        working_dir: /var/www
+        volumes:
+            - ./:/var/www
+        networks:
+            - microservices02
+
+    nginx:
+        image: nginx:alpine
+        restart: unless-stopped
+        ports:
+            - 8001:80
+            - 445:443
+        volumes:
+            - ./:/var/www
+            - ./docker/nginx/:/etc/nginx/conf.d/
+        networks:
+            - microservices02
+    redis:
+        image: redis:latest
+        restart: unless-stopped
+        ports:
+            - 6378:6379
+        networks:
+            - microservices02
+    queue:
+        build:
+            args:
+                user: 'robertobelli'
+                uid: 1000
+            context: ./
+            dockerfile: ./Dockerfile
+        image: laravel-app
+        restart: unless-stopped
+        working_dir: /var/www
+        volumes:
+            - ./:/var/www
+        networks:
+            - microservices02
+        command: "php artisan queue:work"
+        depends_on:
+            - redis
+    db_micro_02:
+        image: mariadb:10.5.9
+        restart: unless-stopped
+        environment:
+            MYSQL_DATABASE: ${DB_DATABASE}
+            MYSQL_USER:  ${DB_USERNAME}
+            MYSQL_PASSWORD: ${DB_PASSWORD}
+            MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+        ports:
+            - 33062:3306
+        networks:
+            - microservices02
+        volumes:
+            -  ./.docker/mysql/dbdata:/var/lib/mysql
+networks:
+    microservices02:
+        driver: bridge
